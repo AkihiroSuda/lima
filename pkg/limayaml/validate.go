@@ -84,11 +84,13 @@ func Validate(y *LimaYAML, warn bool) error {
 		if !IsNativeArch(*y.Arch) {
 			return fmt.Errorf("field `arch` must be %q for VZ; got %q", NewArch(runtime.GOARCH), *y.Arch)
 		}
+	case EXT:
+		// NOP
 	default:
-		return fmt.Errorf("field `vmType` must be %q, %q, %q; got %q", QEMU, VZ, WSL2, *y.VMType)
+		return fmt.Errorf("field `vmType` must be %q, %q, %q, %q; got %q", QEMU, VZ, WSL2, EXT, *y.VMType)
 	}
 
-	if len(y.Images) == 0 {
+	if len(y.Images) == 0 && *y.VMType != EXT {
 		return errors.New("field `images` must be set")
 	}
 	for i, f := range y.Images {
@@ -174,6 +176,9 @@ func Validate(y *LimaYAML, warn bool) error {
 		}
 	}
 
+	if *y.SSH.Address == "127.0.0.1" && *y.VMType == EXT {
+		return errors.New("field `ssh.address` must be set, for ext")
+	}
 	if y.SSH.Address != nil {
 		if err := validateHost("ssh.address", *y.SSH.Address); err != nil {
 			return err

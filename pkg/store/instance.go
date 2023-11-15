@@ -189,6 +189,14 @@ func inspectStatusWithPIDFiles(instDir string, inst *Instance, y *limayaml.LimaY
 		inst.Status = StatusBroken
 		inst.Errors = append(inst.Errors, err)
 	}
+	if *y.VMType == limayaml.EXT {
+		if inst.HostAgentPID > 0 {
+			inst.Status = StatusRunning
+		} else if inst.HostAgentPID == 0 {
+			inst.Status = StatusStopped
+		}
+		return
+	}
 
 	if inst.Status == StatusUnknown {
 		switch {
