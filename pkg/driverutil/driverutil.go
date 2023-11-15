@@ -1,6 +1,7 @@
 package driverutil
 
 import (
+	"github.com/lima-vm/lima/pkg/ext"
 	"github.com/lima-vm/lima/pkg/limayaml"
 	"github.com/lima-vm/lima/pkg/vz"
 	"github.com/lima-vm/lima/pkg/wsl2"
@@ -14,6 +15,9 @@ func Drivers() []string {
 	}
 	if wsl2.Enabled {
 		drivers = append(drivers, limayaml.WSL2)
+	}
+	if ext.Enabled {
+		drivers = append(drivers, limayaml.EXT)
 	}
 	return drivers
 }
