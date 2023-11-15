@@ -100,7 +100,7 @@ func New(instName string, stdout io.Writer, signalCh chan os.Signal, opts ...Opt
 	}
 
 	// inst.Config is loaded with FillDefault() already, so no need to care about nil pointers.
-	sshLocalPort, err := determineSSHLocalPort(*inst.Config.SSH.LocalPort, instName)
+	sshLocalPort, err := determineSSHLocalPort(*inst.Config.SSH.Address, *inst.Config.SSH.LocalPort, instName)
 	if err != nil {
 		return nil, err
 	}
@@ -243,12 +243,15 @@ func writeSSHConfigFile(sshPath, instName, instDir, instSSHAddress string, sshLo
 	return os.WriteFile(fileName, b.Bytes(), 0o600)
 }
 
-func determineSSHLocalPort(confLocalPort int, instName string) (int, error) {
+func determineSSHLocalPort(confSSHAddress string, confLocalPort int, instName string) (int, error) {
 	if confLocalPort > 0 {
 		return confLocalPort, nil
 	}
 	if confLocalPort < 0 {
 		return 0, fmt.Errorf("invalid ssh local port %d", confLocalPort)
+	}
+	if confLocalPort == 0 && confSSHAddress != "127.0.0.1" {
+		return 22, nil
 	}
 	if instName == "default" {
 		// use hard-coded value for "default" instance, for backward compatibility

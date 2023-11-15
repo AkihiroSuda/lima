@@ -142,6 +142,9 @@ additionalDisks:
 #   fsType: "ext4"
 
 ssh:
+  # Address for the host.
+  # 🟢 Builtin default: "127.0.0.1" (localhost)
+  address: null
   # A localhost port of the host. Forwarded to port 22 of the guest.
   # 🟢 Builtin default: 0 (automatically assigned to a free port)
   # NOTE: when the instance name is "default", the builtin default value is set to
