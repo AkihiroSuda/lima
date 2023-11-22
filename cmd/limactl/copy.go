@@ -95,9 +95,9 @@ func copyAction(cmd *cobra.Command, args []string) error {
 			}
 			if legacySSH {
 				scpFlags = append(scpFlags, "-P", fmt.Sprintf("%d", inst.SSHLocalPort))
-				scpArgs = append(scpArgs, fmt.Sprintf("%s@127.0.0.1:%s", *inst.Config.User.Name, path[1]))
+				scpArgs = append(scpArgs, fmt.Sprintf("%s@%s:%s", *inst.Config.User.Name, inst.SSHAddress, path[1]))
 			} else {
-				scpArgs = append(scpArgs, fmt.Sprintf("scp://%s@127.0.0.1:%d/%s", *inst.Config.User.Name, inst.SSHLocalPort, path[1]))
+				scpArgs = append(scpArgs, fmt.Sprintf("scp://%s@%s:%d/%s", *inst.Config.User.Name, inst.SSHAddress, inst.SSHLocalPort, path[1]))
 			}
 			instances[instName] = inst
 		default:
