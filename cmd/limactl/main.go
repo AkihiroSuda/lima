@@ -142,6 +142,7 @@ func newApp() *cobra.Command {
 		newSudoersCommand(),
 		newPruneCommand(),
 		newHostagentCommand(),
+		newGuestInstallCommand(),
 		newInfoCommand(),
 		newShowSSHCommand(),
 		newDebugCommand(),
