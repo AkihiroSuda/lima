@@ -1,6 +1,7 @@
 package limayaml
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"unicode"
+	"time"
 
 	"github.com/containerd/containerd/identifiers"
 	"github.com/coreos/go-semver/semver"
@@ -510,12 +512,26 @@ func ValidateParamIsUsed(y *LimaYAML) error {
 	return nil
 }
 
+func lookupIP(host string) error {
+	var err error
+	if strings.HasSuffix(host, ".local") {
+		var r net.Resolver
+		const timeout = 500 * time.Millisecond // timeout for .local
+		ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+		defer cancel()
+		_, err = r.LookupIP(ctx, "ip", host)
+	} else {
+		_, err = net.LookupIP(host)
+	}
+	return err
+}
+
 func validateHost(field, host string) error {
 	if net.ParseIP(host) != nil {
 		return nil
 	}
-	if _, err := net.LookupIP(host); err != nil {
-		return fmt.Errorf("field `%s` must be IP", field)
+	if err := lookupIP(host); err != nil {
+		return fmt.Errorf("field `%s` must be IP: %w", field, err)
 	}
 	return nil
 }
