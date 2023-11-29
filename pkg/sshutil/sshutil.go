@@ -157,7 +157,7 @@ var sshInfo struct {
 //
 // The result always contains the IdentityFile option.
 // The result never contains the Port option.
-func CommonOpts(sshPath string, useDotSSH bool) ([]string, error) {
+func CommonOpts(sshPath string, useDotSSH, localhost bool) ([]string, error) {
 	configDir, err := dirnames.LimaConfigDir()
 	if err != nil {
 		return nil, err
@@ -212,14 +212,20 @@ func CommonOpts(sshPath string, useDotSSH bool) ([]string, error) {
 		}
 	}
 
+	if localhost {
+		opts = append(opts,
+			"StrictHostKeyChecking=no",
+			"UserKnownHostsFile=/dev/null",
+			"BatchMode=yes",
+		)
+	}
+
 	opts = append(opts,
-		"StrictHostKeyChecking=no",
-		"UserKnownHostsFile=/dev/null",
 		"NoHostAuthenticationForLocalhost=yes",
 		"GSSAPIAuthentication=no",
 		"PreferredAuthentications=publickey",
 		"Compression=no",
-		"BatchMode=yes",
+		"PasswordAuthentication=no",
 		"IdentitiesOnly=yes",
 	)
 
@@ -254,12 +260,12 @@ func CommonOpts(sshPath string, useDotSSH bool) ([]string, error) {
 }
 
 // SSHOpts adds the following options to CommonOptions: User, ControlMaster, ControlPath, ControlPersist.
-func SSHOpts(sshPath, instDir, username string, useDotSSH, forwardAgent, forwardX11, forwardX11Trusted bool) ([]string, error) {
+func SSHOpts(sshPath, instDir, username string, useDotSSH bool, hostAddress string, forwardAgent, forwardX11, forwardX11Trusted bool) ([]string, error) {
 	controlSock := filepath.Join(instDir, filenames.SSHSock)
 	if len(controlSock) >= osutil.UnixPathMax {
 		return nil, fmt.Errorf("socket path %q is too long: >= UNIX_PATH_MAX=%d", controlSock, osutil.UnixPathMax)
 	}
-	opts, err := CommonOpts(sshPath, useDotSSH)
+	opts, err := CommonOpts(sshPath, useDotSSH, hostAddress == "127.0.0.1")
 	if err != nil {
 		return nil, err
 	}
