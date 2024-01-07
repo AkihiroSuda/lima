@@ -128,7 +128,7 @@ If any private key under ~/.ssh is protected with a passphrase, you need to have
 	if *a.instConfig.Plain {
 		return req
 	}
-	if *a.y.VMType != limayaml.EXT {
+	if *a.instConfig.VMType != limayaml.EXT {
 		req = append(req,
 			requirement{
 				description: "user session is ready for ssh",
@@ -227,7 +227,7 @@ Also see "/var/log/cloud-init-output.log" in the guest.
 
 func (a *HostAgent) finalRequirements() []requirement {
 	req := make([]requirement, 0)
-	if *a.y.VMType != limayaml.EXT {
+	if *a.instConfig.VMType != limayaml.EXT {
 		req = append(req,
 			requirement{
 				description: "boot scripts must have finished",
