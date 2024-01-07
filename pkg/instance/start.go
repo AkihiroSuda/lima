@@ -98,6 +98,10 @@ func Prepare(ctx context.Context, inst *store.Instance) (*Prepared, error) {
 	if err := limaDriver.CreateDisk(ctx); err != nil {
 		return nil, err
 	}
+	if *inst.Config.VMType == limayaml.EXT {
+		// Created externally
+		created = true
+	}
 	nerdctlArchiveCache, err := ensureNerdctlArchiveCache(ctx, inst.Config, created)
 	if err != nil {
 		return nil, err
