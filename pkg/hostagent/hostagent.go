@@ -383,8 +383,21 @@ func (a *HostAgent) Run(ctx context.Context) error {
 	return a.startRoutinesAndWait(ctx, errCh)
 }
 
+func getIP(address string) string {
+	ip := net.ParseIP(address)
+	if ip != nil {
+		return address
+	}
+	ips, err := net.LookupIP(address)
+	if err == nil && len(ips) > 0 {
+		return ips[0].String()
+	}
+	return address
+}
+
 func (a *HostAgent) startRoutinesAndWait(ctx context.Context, errCh <-chan error) error {
 	stBase := events.Status{
+		SSHIPAddress: getIP(a.instSSHAddress),
 		SSHLocalPort: a.sshLocalPort,
 	}
 	stBooting := stBase

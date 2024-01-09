@@ -13,7 +13,8 @@ type Status struct {
 
 	Errors []string `json:"errors,omitempty"`
 
-	SSHLocalPort int `json:"sshLocalPort,omitempty"`
+	SSHIPAddress string `json:"sshIPAddress,omitempty"`
+	SSHLocalPort int    `json:"sshLocalPort,omitempty"`
 }
 
 type Event struct {
