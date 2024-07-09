@@ -7,6 +7,9 @@ Lima supports two ways of running guest machines:
 - [qemu](#qemu)
 - [vz](#vz)
 
+Lima also supports connecting to external machines:
+- [ext](#ext)
+
 The vmType can be specified only on creating the instance.
 The vmType of existing instances cannot be changed.
 
@@ -111,3 +114,11 @@ containerd:
 - When running lima using "wsl2", `${LIMA_HOME}/<INSTANCE>/serial.log` will not contain kernel boot logs
 - WSL2 requires a `tar` formatted rootfs archive instead of a VM image
 - Windows doesn't ship with ssh.exe, gzip.exe, etc. which are used by Lima at various points. The easiest way around this is to run `winget install -e --id Git.MinGit` (winget is now built in to Windows as well), and add the resulting `C:\Program Files\Git\usr\bin\` directory to your path.
+
+## EXT
+> **Warning**
+> "ext" mode is experimental
+
+"ext" option makes use of an external machine, either a virtual machine or a physical machine.
+
+It is accessed using an address (for SSH), the keys are supposed to be set up for it already.
