@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -152,6 +153,14 @@ var sshInfo struct {
 	openSSHVersion semver.Version
 }
 
+func IsLocalhost(address string) bool {
+	ip := net.ParseIP(address)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback()
+}
+
 // CommonOpts returns ssh option key-value pairs like {"IdentityFile=/path/to/id_foo"}.
 // The result may contain different values with the same key.
 //
@@ -265,7 +274,7 @@ func SSHOpts(sshPath, instDir, username string, useDotSSH bool, hostAddress stri
 	if len(controlSock) >= osutil.UnixPathMax {
 		return nil, fmt.Errorf("socket path %q is too long: >= UNIX_PATH_MAX=%d", controlSock, osutil.UnixPathMax)
 	}
-	opts, err := CommonOpts(sshPath, useDotSSH, hostAddress == "127.0.0.1")
+	opts, err := CommonOpts(sshPath, useDotSSH, IsLocalhost(hostAddress))
 	if err != nil {
 		return nil, err
 	}

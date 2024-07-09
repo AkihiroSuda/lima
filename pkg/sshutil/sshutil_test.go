@@ -15,6 +15,10 @@ func TestDefaultPubKeys(t *testing.T) {
 	}
 }
 
+func TestIsLocalhost(t *testing.T) {
+	assert.Equal(t, IsLocalhost("127.0.0.1"), true)
+}
+
 func TestParseOpenSSHVersion(t *testing.T) {
 	assert.Check(t, ParseOpenSSHVersion([]byte("OpenSSH_8.4p1 Ubuntu")).Equal(
 		semver.Version{Major: 8, Minor: 4, Patch: 1, PreRelease: "", Metadata: ""}))
