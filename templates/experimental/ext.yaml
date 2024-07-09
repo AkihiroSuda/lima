@@ -1,0 +1,14 @@
+vmType: ext
+
+arch: "aarch64"
+cpus: 4
+memory: 512MiB
+disk: 32GiB
+
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+
+ssh:
+  address: raspberrypi.local
