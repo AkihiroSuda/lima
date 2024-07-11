@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,13 +78,41 @@ func guestInstallAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	guestAgentFilename := filepath.Base(guestAgentBinary)
+	if _, err := os.Stat(guestAgentBinary); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		compressedGuestAgent, err := os.Open(guestAgentBinary + ".gz")
+		if err != nil {
+			return err
+		}
+		defer compressedGuestAgent.Close()
+		tmpGuestAgent, err := os.CreateTemp("", "lima-guestagent-")
+		if err != nil {
+			return err
+		}
+		logrus.Debugf("Decompressing %s.gz", guestAgentBinary)
+		guestAgent, err := gzip.NewReader(compressedGuestAgent)
+		if err != nil {
+			return err
+		}
+		defer guestAgent.Close()
+		_, err = io.Copy(tmpGuestAgent, guestAgent)
+		if err != nil {
+			return err
+		}
+		tmpGuestAgent.Close()
+		guestAgentBinary = tmpGuestAgent.Name()
+		defer os.RemoveAll(guestAgentBinary)
+	}
 	tmpname := "lima-guestagent"
 	tmp, err := shell(sshExe, sshFlags, hostname, "mktemp", "-t", "lima-guestagent.XXXXXX")
 	if err != nil {
 		return err
 	}
 	bin := prefix + "/bin/lima-guestagent"
-	logrus.Infof("Copying %q to %s:%s", guestAgentBinary, inst.Name, tmpname)
+	logrus.Infof("Copying %q to %s:%s", guestAgentFilename, inst.Name, tmpname)
 	scpArgs := []string{guestAgentBinary, hostname + ":" + tmp}
 	if err := runCmd(scpExe, scpFlags, scpArgs...); err != nil {
 		return nil
