@@ -186,3 +186,134 @@ func TestValidateParamIsUsed(t *testing.T) {
 		assert.Error(t, err, "field `param` key \"rootFul\" is not used in any provision, probe, copyToHost, or portForward")
 	}
 }
+
+func TestValidateRosetta(t *testing.T) {
+	images := `images: [{"location": "/"}]`
+
+	nilData := ``
+	y, err := Load([]byte(nilData+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+
+	invalidRosetta := `
+rosetta:
+  enabled: true
+vmType: "qemu"
+`
+	y, err = Load([]byte(invalidRosetta+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	if runtime.GOOS == "darwin" && IsNativeArch(AARCH64) {
+		assert.Error(t, err, "field `rosetta.enabled` can only be enabled for VMType \"vz\"; got \"qemu\"")
+	} else {
+		assert.NilError(t, err)
+	}
+
+	validRosetta := `
+rosetta:
+  enabled: true
+vmType: "vz"
+`
+	y, err = Load([]byte(validRosetta+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+
+	rosettaDisabled := `
+rosetta:
+  enabled: false
+vmType: "qemu"
+`
+	y, err = Load([]byte(rosettaDisabled+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+}
+
+func TestValidateNestedVirtualization(t *testing.T) {
+	images := `images: [{"location": "/"}]`
+
+	validYAML := `
+nestedVirtualization: true
+vmType: vz
+` + images
+
+	y, err := Load([]byte(validYAML), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+
+	invalidYAML := `
+nestedVirtualization: true
+vmType: qemu
+` + images
+
+	y, err = Load([]byte(invalidYAML), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.Error(t, err, "field `nestedVirtualization` can only be enabled for VMType \"vz\"; got \"qemu\"")
+}
+
+func TestValidateMountTypeOS(t *testing.T) {
+	images := `images: [{"location": "/"}]`
+
+	nilMountConf := ``
+	y, err := Load([]byte(nilMountConf+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+
+	inValidMountTypeLinux := `
+mountType: "random"
+`
+	y, err = Load([]byte(inValidMountTypeLinux+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, true)
+	assert.Error(t, err, "field `mountType` must be \"reverse-sshfs\" or \"9p\" or \"virtiofs\", or \"wsl2\", got \"random\"")
+
+	validMountTypeLinux := `
+mountType: "virtiofs"
+`
+	y, err = Load([]byte(validMountTypeLinux+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, true)
+	if runtime.GOOS == "darwin" && IsNativeArch(AARCH64) {
+		assert.Error(t, err, "field `mountType` \"virtiofs\" on macOS requires vmType \"vz\"; got \"qemu\"")
+	} else {
+		assert.NilError(t, err)
+	}
+
+	validMountTypeMac := `
+mountType: "virtiofs"
+vmType: "vz"
+`
+	y, err = Load([]byte(validMountTypeMac+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	assert.NilError(t, err)
+
+	invalidMountTypeMac := `
+mountType: "virtiofs"
+vmType: "qemu"
+`
+	y, err = Load([]byte(invalidMountTypeMac+"\n"+images), "lima.yaml")
+	assert.NilError(t, err)
+
+	err = Validate(y, false)
+	if runtime.GOOS == "darwin" {
+		assert.Error(t, err, "field `mountType` \"virtiofs\" on macOS requires vmType \"vz\"; got \"qemu\"")
+	} else {
+		assert.NilError(t, err)
+	}
+}
