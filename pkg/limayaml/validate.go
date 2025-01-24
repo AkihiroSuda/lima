@@ -372,6 +372,37 @@ func Validate(y *LimaYAML, warn bool) error {
 		}
 	}
 
+	if y.Rosetta.Enabled != nil && *y.Rosetta.Enabled && *y.VMType != VZ {
+		return fmt.Errorf("field `rosetta.enabled` can only be enabled for VMType %q; got %q", VZ, *y.VMType)
+	}
+
+	if y.NestedVirtualization != nil && *y.NestedVirtualization && *y.VMType != VZ {
+		return fmt.Errorf("field `nestedVirtualization` can only be enabled for VMType %q; got %q", VZ, *y.VMType)
+	}
+
+	if err := validateMountType(y); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateMountType(y *LimaYAML) error {
+	validMountTypes := map[string]bool{
+		REVSSHFS: true,
+		NINEP:    true,
+		VIRTIOFS: true,
+		WSLMount: true,
+	}
+
+	if !validMountTypes[*y.MountType] {
+		return fmt.Errorf("field `mountType` must be: %q, %q, %q, %q; got %q", REVSSHFS, NINEP, VIRTIOFS, WSLMount, *y.MountType)
+	}
+
+	if *y.MountType == VIRTIOFS && runtime.GOOS == "darwin" && *y.VMType != VZ {
+		return fmt.Errorf("field `mountType` %q on macOS requires vmType %q; got %q", *y.MountType, VZ, *y.VMType)
+	}
+
 	return nil
 }
 
@@ -431,6 +462,9 @@ func validateNetwork(y *LimaYAML) error {
 			if len(hw) != 6 {
 				return fmt.Errorf("field `%s.macAddress` must be a 48 bit (6 bytes) MAC address; actual length of %q is %d bytes", field, nw.MACAddress, len(hw))
 			}
+		}
+		if nw.VZNAT != nil && *nw.VZNAT && *y.VMType != VZ {
+			return fmt.Errorf("field `%s.vzNAT` needs vmType set to %q; got %q", field, VZ, *y.VMType)
 		}
 		// FillDefault() will make sure that nw.Interface is not the empty string
 		if len(nw.Interface) >= 16 {
