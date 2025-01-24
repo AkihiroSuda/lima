@@ -13,6 +13,7 @@ Default: [`default`](./default.yaml) (⭐Ubuntu, with containerd/nerdctl)
 Distro:
 - [`almalinux-8`](./almalinux-8.yaml): AlmaLinux 8
 - [`almalinux-9`](./almalinux-9.yaml), `almalinux.yaml`: AlmaLinux 9
+- [`almalinux-kitten-10`](./almalinux-kitten-10.yaml): AlmaLinux Kitten 10
 - [`alpine`](./alpine.yaml): ☆Alpine Linux
 - [`alpine-iso`](./alpine-iso.yaml): ☆Alpine Linux (ISO9660 image). Compatible with the `alpine` template used in Lima prior to v1.0.
 - [`archlinux`](./archlinux.yaml): ☆Arch Linux

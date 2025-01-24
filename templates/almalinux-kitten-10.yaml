@@ -1,0 +1,20 @@
+# This template requires Lima v0.11.1 or later.
+
+images:
+- location: "https://kitten.repo.almalinux.org/10-kitten/cloud/x86_64/images/AlmaLinux-Kitten-GenericCloud-10-20241227.0.x86_64.qcow2"
+  arch: "x86_64"
+  digest: "sha256:cb06a7fd9829c7fdb318963703dea3822e509af0d93e786225d79be7200bdbeb"
+- location: "https://kitten.repo.almalinux.org/10-kitten/cloud/aarch64/images/AlmaLinux-Kitten-GenericCloud-10-20241227.0.aarch64.qcow2"
+  arch: "aarch64"
+  digest: "sha256:31838872e87f7d264cfd865ef288e5a4b7f31ba88ab84984ac5d4491a1c1a9e8"
+# Fallback to the latest release image.
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://kitten.repo.almalinux.org/10-kitten/cloud/x86_64/images/AlmaLinux-Kitten-GenericCloud-10-latest.x86_64.qcow2"
+  arch: "x86_64"
+- location: "https://kitten.repo.almalinux.org/10-kitten/cloud/aarch64/images/AlmaLinux-Kitten-GenericCloud-10-latest.aarch64.qcow2"
+  arch: "aarch64"
+mountTypesUnsupported: ["9p"]
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
