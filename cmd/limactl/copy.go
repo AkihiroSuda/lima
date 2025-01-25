@@ -21,6 +21,13 @@ Prefix guest filenames with the instance name and a colon.
 Example: limactl copy default:/etc/os-release .
 `
 
+type copyTool string
+
+const (
+	Rsync copyTool = "rsync"
+	Scp   copyTool = "scp"
+)
+
 func newCopyCommand() *cobra.Command {
 	copyCommand := &cobra.Command{
 		Use:     "copy SOURCE ... TARGET",
@@ -49,13 +56,20 @@ func copyAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	arg0, err := exec.LookPath("scp")
-	if err != nil {
-		return err
+	defaultTool := Rsync
+	arg0, err := exec.LookPath(string(defaultTool))
+	if err != nil || !strings.HasSuffix(arg0, "rsync") {
+		defaultTool = Scp
+		arg0, err = exec.LookPath(string(defaultTool))
+		if err != nil {
+			return err
+		}
 	}
+	logrus.Infof("using copy tool %q", arg0)
+
 	instances := make(map[string]*store.Instance)
-	scpFlags := []string{}
-	scpArgs := []string{}
+	copyToolFlags := []string{}
+	copyToolArgs := []string{}
 	debug, err := cmd.Flags().GetBool("debug")
 	if err != nil {
 		return err
@@ -65,14 +79,20 @@ func copyAction(cmd *cobra.Command, args []string) error {
 		verbose = true
 	}
 
+	useRsync := isCopyToolRsync(defaultTool)
+
 	if verbose {
-		scpFlags = append(scpFlags, "-v")
-	} else {
-		scpFlags = append(scpFlags, "-q")
+		copyToolFlags = append(copyToolFlags, "-v")
+		if useRsync {
+			copyToolFlags = append(copyToolFlags, "--progress")
+		}
+	}
+	if !verbose {
+		copyToolFlags = append(copyToolFlags, "-q")
 	}
 
 	if recursive {
-		scpFlags = append(scpFlags, "-r")
+		copyToolFlags = append(copyToolFlags, "-r")
 	}
 	// this assumes that ssh and scp come from the same place, but scp has no -V
 	legacySSH := sshutil.DetectOpenSSHVersion("ssh").LessThan(*semver.New("8.0.0"))
@@ -80,7 +100,7 @@ func copyAction(cmd *cobra.Command, args []string) error {
 		path := strings.Split(arg, ":")
 		switch len(path) {
 		case 1:
-			scpArgs = append(scpArgs, arg)
+			copyToolArgs = append(copyToolArgs, arg)
 		case 2:
 			instName := path[0]
 			inst, err := store.Inspect(instName)
@@ -93,11 +113,15 @@ func copyAction(cmd *cobra.Command, args []string) error {
 			if inst.Status == store.StatusStopped {
 				return fmt.Errorf("instance %q is stopped, run `limactl start %s` to start the instance", instName, instName)
 			}
-			if legacySSH {
-				scpFlags = append(scpFlags, "-P", fmt.Sprintf("%d", inst.SSHLocalPort))
-				scpArgs = append(scpArgs, fmt.Sprintf("%s@127.0.0.1:%s", *inst.Config.User.Name, path[1]))
+			if useRsync {
+				copyToolArgs = append(copyToolArgs, fmt.Sprintf("%s@127.0.0.1:%s", *inst.Config.User.Name, path[1]))
 			} else {
-				scpArgs = append(scpArgs, fmt.Sprintf("scp://%s@127.0.0.1:%d/%s", *inst.Config.User.Name, inst.SSHLocalPort, path[1]))
+				if legacySSH {
+					copyToolFlags = append(copyToolFlags, "-P", fmt.Sprintf("%d", inst.SSHLocalPort))
+					copyToolArgs = append(copyToolArgs, fmt.Sprintf("%s@127.0.0.1:%s", *inst.Config.User.Name, path[1]))
+				} else {
+					copyToolArgs = append(copyToolArgs, fmt.Sprintf("scp://%s@127.0.0.1:%d/%s", *inst.Config.User.Name, inst.SSHLocalPort, path[1]))
+				}
 			}
 			instances[instName] = inst
 		default:
@@ -107,8 +131,10 @@ func copyAction(cmd *cobra.Command, args []string) error {
 	if legacySSH && len(instances) > 1 {
 		return errors.New("more than one (instance) host is involved in this command, this is only supported for openSSH v8.0 or higher")
 	}
-	scpFlags = append(scpFlags, "-3", "--")
-	scpArgs = append(scpFlags, scpArgs...)
+	if !useRsync {
+		copyToolFlags = append(copyToolFlags, "-3", "--")
+	}
+	copyToolArgs = append(copyToolFlags, copyToolArgs...)
 
 	var sshOpts []string
 	if len(instances) == 1 {
@@ -128,14 +154,28 @@ func copyAction(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
+
 	sshArgs := sshutil.SSHArgsFromOpts(sshOpts)
 
-	sshCmd := exec.Command(arg0, append(sshArgs, scpArgs...)...)
+	sshCmd := exec.Command(arg0, createArgs(sshArgs, copyToolArgs, defaultTool)...)
 	sshCmd.Stdin = cmd.InOrStdin()
 	sshCmd.Stdout = cmd.OutOrStdout()
 	sshCmd.Stderr = cmd.ErrOrStderr()
-	logrus.Debugf("executing scp (may take a long time): %+v", sshCmd.Args)
+	logrus.Debugf("executing %s (may take a long time): %+v", arg0, sshCmd.Args)
 
 	// TODO: use syscall.Exec directly (results in losing tty?)
 	return sshCmd.Run()
+}
+
+func isCopyToolRsync(copyTool copyTool) bool {
+	return copyTool == Rsync
+}
+
+func createArgs(sshArgs, copyToolArgs []string, copyTool copyTool) []string {
+	if isCopyToolRsync(copyTool) {
+		rsyncFlags := []string{"-e", fmt.Sprintf("ssh %s", strings.Join(sshArgs, " "))}
+		return append(rsyncFlags, copyToolArgs...)
+	}
+
+	return append(sshArgs, copyToolArgs...)
 }
