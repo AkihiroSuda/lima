@@ -162,6 +162,7 @@ See [Building Ansible inventories](https://docs.ansible.com/ansible/latest/inven
 - `lima-guestagent`: Lima guest agent binary
 - `nerdctl-full.tgz`: [`nerdctl-full-<VERSION>-<OS>-<ARCH>.tar.gz`](https://github.com/containerd/nerdctl/releases)
 - `boot.sh`: Boot script
+- `boot.essential/*`: Boot script modules (executed in "plain" mode too)
 - `boot/*`: Boot script modules
 - `util/*`: Utility command scripts, executed in the boot script modules
 - `provision.system/*`: Custom provision scripts (system)

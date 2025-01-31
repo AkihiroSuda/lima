@@ -1,0 +1,3 @@
+The "essential" scripts are limited to scripts that are essential even in the "plain" mode (`limactl create --plain`).
+
+Do not add more scripts to this `boot.essential` directory, unless they are really essential.
