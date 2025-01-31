@@ -4,8 +4,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
-	"runtime"
 
 	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/diskfs/go-diskfs/filesystem/iso9660"
@@ -32,10 +30,6 @@ func Write(isoPath, label string, layout []Entry) error {
 	workdir, err := os.MkdirTemp("", "diskfs_iso")
 	if err != nil {
 		return err
-	}
-	if runtime.GOOS == "windows" {
-		// go-embed unfortunately needs unix path
-		workdir = filepath.ToSlash(workdir)
 	}
 	logrus.Debugf("Creating iso file %s", isoFile.Name())
 	logrus.Debugf("Using %s as workspace", workdir)
