@@ -192,10 +192,11 @@ if [ "$got" != "$expected" ]; then
 fi
 
 INFO "Testing limactl copy command"
-tmpfile="$HOME/lima-hostname"
+tmpdir="$(mktemp -d ${TMPDIR:-/tmp}/lima-test-templates.XXXXXX)"
+defer "rm -rf \"$tmpdir\""
+tmpfile="$tmpdir/lima-hostname"
 rm -f "$tmpfile"
 limactl cp "$NAME":/etc/hostname "$tmpfile"
-defer "rm -f \"$tmpfile\""
 expected="$(limactl shell "$NAME" cat /etc/hostname)"
 got="$(cat "$tmpfile")"
 INFO "/etc/hostname: expected=${expected}, got=${got}"
