@@ -485,7 +485,7 @@ ifeq ($(GOOS),darwin)
 to_uname_m = $(foreach arch,$(1),$(shell echo $(arch) | sed 's/amd64/x86_64/'))
 else ifeq ($(GOOS),linux)
 # CC is required for cross-compiling on Linux.
-CC = $(call to_uname_m,$(GOARCH))-linux-gnu-gcc
+CC = gcc
 else ifeq ($(GOOS),windows)
 # artifact in zip format also provided for Windows.
 ARTIFACT_FILE_EXTENSIONS += .zip
