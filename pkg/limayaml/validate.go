@@ -464,6 +464,16 @@ func ValidateParamIsUsed(y *LimaYAML) error {
 				keyIsUsed = true
 				break
 			}
+			if p.Playbook != "" {
+				playbook, err := os.ReadFile(p.Playbook)
+				if err != nil {
+					return err
+				}
+				if re.Match(playbook) {
+					keyIsUsed = true
+					break
+				}
+			}
 		}
 		for _, p := range y.Probes {
 			if re.MatchString(p.Script) {

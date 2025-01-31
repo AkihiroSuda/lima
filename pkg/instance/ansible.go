@@ -2,6 +2,7 @@ package instance
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +34,7 @@ func runAnsiblePlaybook(ctx context.Context, inst *store.Instance, playbook stri
 	logrus.Debugf("ansible-playbook -i %q %q", inventory, playbook)
 	args := []string{"-i", inventory, playbook}
 	cmd := exec.CommandContext(ctx, "ansible-playbook", args...)
+	cmd.Env = getAnsibleEnvironment(inst)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -59,4 +61,12 @@ func createAnsibleInventory(inst *store.Instance) (string, error) {
 	}
 	inventory := filepath.Join(inst.Dir, filenames.AnsibleInventoryYAML)
 	return inventory, os.WriteFile(inventory, bytes, 0o644)
+}
+
+func getAnsibleEnvironment(inst *store.Instance) []string {
+	env := os.Environ()
+	for key, val := range inst.Config.Param {
+		env = append(env, fmt.Sprintf("PARAM_%s=%s", key, val))
+	}
+	return env
 }
