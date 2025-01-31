@@ -22,40 +22,16 @@ Specifying `--mount-type=virtiofs` is not necessary here, but it is highly recom
 for the best performance and stability.
 
 ## Running containers
-{{< tabpane text=true >}}
 
-{{% tab header="containerd" %}}
+Lima comes with the built-in integration for [containerd](https://containerd.io) and
+[nerdctl](https://github.com/containerd/nerdctl) (contaiNERD CTL):
+
 ```bash
 nerdctl.lima run -d --name nginx -p 127.0.0.1:8080:80 nginx:alpine
 ```
-{{% /tab %}}
+<http://127.0.0.1:8080> is accessible from the host, as well as from the VM.
 
-{{% tab header="Docker" %}}
-```bash
-limactl start template://docker
-export DOCKER_HOST=$(limactl list docker --format 'unix://{{.Dir}}/sock/docker.sock')
-docker run -d --name nginx -p 127.0.0.1:8080:80 nginx:alpine
-```
-{{% /tab %}}
-
-{{% tab header="Kubernetes" %}}
-```bash
-limactl start template://k8s
-export KUBECONFIG=$(limactl list k8s --format 'unix://{{.Dir}}/copied-from-guest/kubeconfig.yaml')
-kubectl apply -f ...
-```
-{{% /tab %}}
-
-{{< /tabpane >}}
-
-- <http://127.0.0.1:8080> is accessible from the host, as well as from the VM.
-
-- For the usage of containerd and nerdctl (contaiNERD ctl), visit <https://github.com/containerd/containerd>
-and <https://github.com/containerd/nerdctl>.
-
-- If you have installed Lima by `make install`, the `nerdctl.lima` command is also available as `nerdctl`.
-  If you have installed Lima by `brew install lima`, you may make an alias (or a symlink) by yourself:
-  `alias nerdctl=nerdctl.lima`
+See also the [Containers](./containers) page for other examples such as using Docker and Kubernetes.
 
 ## Advanced configuration
 
