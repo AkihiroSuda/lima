@@ -1,0 +1,20 @@
+name: Check Remote Image Existence
+
+on:
+  pull_request:
+    paths:
+    - 'examples/**.yaml'
+    - 'hack/test-templates/**.yaml'
+    - 'hack/check-remote-image-existence.sh'
+
+jobs:
+  check-remote-image-existence:
+    name: Check Remote Image Existence
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run check-remote-image-existence.sh
+      run: ./hack/check-remote-image-existence.sh
