@@ -439,6 +439,7 @@ func (a *HostAgent) startHostAgentRoutines(ctx context.Context) error {
 	if err := a.waitForRequirements("essential", a.essentialRequirements()); err != nil {
 		errs = append(errs, err)
 	}
+
 	if *a.instConfig.SSH.ForwardAgent {
 		faScript := `#!/bin/bash
 set -eux -o pipefail
