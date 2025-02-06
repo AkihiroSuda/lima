@@ -1194,14 +1194,16 @@ func HasHostCPU() bool {
 	switch runtime.GOOS {
 	case "darwin":
 		if hasSMEDarwin() {
-			// SME is available since Apple M4 running macOS 15.2.
-			//
-			// However, QEMU is not ready to handle SME yet.
-			//
-			// https://github.com/lima-vm/lima/issues/3032
-			// https://gitlab.com/qemu-project/qemu/-/issues/2665
-			// https://gitlab.com/qemu-project/qemu/-/issues/2721
-			return false
+			macOSProductVersion, err := osutil.ProductVersion()
+			if err != nil || macOSProductVersion.Equal(*semver.New("15.2")) {
+				// SME is available since Apple M4 running macOS 15.2, but it was broken on macOS 15.2.
+				// It has been fixed in 15.3.
+				//
+				// https://github.com/lima-vm/lima/issues/3032
+				// https://gitlab.com/qemu-project/qemu/-/issues/2665
+				// https://gitlab.com/qemu-project/qemu/-/issues/2721
+				return false
+			}
 		}
 		return true
 	case "linux":
