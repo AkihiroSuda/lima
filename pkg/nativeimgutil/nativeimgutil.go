@@ -2,20 +2,43 @@
 package nativeimgutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/continuity/fs"
+	containerdfs "github.com/containerd/continuity/fs"
 	"github.com/docker/go-units"
 	"github.com/lima-vm/go-qcow2reader"
 	"github.com/lima-vm/go-qcow2reader/convert"
 	"github.com/lima-vm/go-qcow2reader/image/qcow2"
 	"github.com/lima-vm/go-qcow2reader/image/raw"
 	"github.com/lima-vm/lima/pkg/progressbar"
+	"github.com/lima-vm/lima/pkg/store/filenames"
 	"github.com/sirupsen/logrus"
 )
+
+// CreateRawDataDisk creates an empty raw data disk.
+func CreateRawDataDisk(dir string, size int) error {
+	dataDisk := filepath.Join(dir, filenames.DataDisk)
+	if _, err := os.Stat(dataDisk); err == nil || !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	f, err := os.Create(dataDisk)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Truncate(int64(size))
+}
+
+// ResizeRawDataDisk resizes a raw data disk.
+func ResizeRawDataDisk(dir string, size int) error {
+	dataDisk := filepath.Join(dir, filenames.DataDisk)
+	return os.Truncate(dataDisk, int64(size))
+}
 
 // ConvertToRaw converts a source disk into a raw disk.
 // source and dest may be same.
@@ -106,7 +129,7 @@ func ConvertToRaw(source, dest string, size *int64, allowSourceWithBackingFile b
 func convertRawToRaw(source, dest string, size *int64) error {
 	if source != dest {
 		// continuity attempts clonefile
-		if err := fs.CopyFile(dest, source); err != nil {
+		if err := containerdfs.CopyFile(dest, source); err != nil {
 			return fmt.Errorf("failed to copy %q into %q: %w", source, dest, err)
 		}
 	}

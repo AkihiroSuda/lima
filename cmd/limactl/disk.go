@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/go-units"
+	"github.com/lima-vm/lima/pkg/nativeimgutil"
 	"github.com/lima-vm/lima/pkg/qemu"
 	"github.com/lima-vm/lima/pkg/store"
 	"github.com/sirupsen/logrus"
@@ -101,7 +102,13 @@ func diskCreateAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := qemu.CreateDataDisk(diskDir, format, int(diskSize)); err != nil {
+	// qemu may not be available, use it only if needed.
+	if format == "raw" {
+		err = nativeimgutil.CreateRawDataDisk(diskDir, int(diskSize))
+	} else {
+		err = qemu.CreateDataDisk(diskDir, format, int(diskSize))
+	}
+	if err != nil {
 		rerr := os.RemoveAll(diskDir)
 		if rerr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to remove a directory %q: %w", diskDir, rerr))
@@ -390,9 +397,17 @@ func diskResizeAction(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
-	if err := qemu.ResizeDataDisk(disk.Dir, disk.Format, int(diskSize)); err != nil {
+
+	// qemu may not be available, use it only if needed.
+	if disk.Format == "raw" {
+		err = nativeimgutil.ResizeRawDataDisk(disk.Dir, int(diskSize))
+	} else {
+		err = qemu.ResizeDataDisk(disk.Dir, disk.Format, int(diskSize))
+	}
+	if err != nil {
 		return fmt.Errorf("failed to resize disk %q: %w", diskName, err)
 	}
+
 	logrus.Infof("Resized disk %q (%q)", diskName, disk.Dir)
 	return nil
 }
