@@ -152,14 +152,6 @@ func Validate(y *LimaYAML, warn bool) error {
 		if err != nil {
 			return fmt.Errorf("field `mounts[%d].location` refers to an unexpandable path: %q: %w", i, f.Location, err)
 		}
-		switch loc {
-		case "/", "/bin", "/dev", "/etc", "/home", "/opt", "/sbin", "/tmp", "/usr", "/var":
-			return fmt.Errorf("field `mounts[%d].location` must not be a system path such as /etc or /usr", i)
-		// home directory defined in "cidata.iso:/user-data"
-		case *y.User.Home:
-			return fmt.Errorf("field `mounts[%d].location` is the reserved internal home directory", i)
-		}
-
 		st, err := os.Stat(loc)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -167,6 +159,14 @@ func Validate(y *LimaYAML, warn bool) error {
 			}
 		} else if !st.IsDir() {
 			return fmt.Errorf("field `mounts[%d].location` refers to a non-directory path: %q: %w", i, f.Location, err)
+		}
+
+		switch *f.MountPoint {
+		case "/", "/bin", "/dev", "/etc", "/home", "/opt", "/sbin", "/tmp", "/usr", "/var":
+			return fmt.Errorf("field `mounts[%d].mountPoint` must not be a system path such as /etc or /usr", i)
+		// home directory defined in "cidata.iso:/user-data"
+		case *y.User.Home:
+			return fmt.Errorf("field `mounts[%d].mountPoint` is the reserved internal home directory %q", i, *y.User.Home)
 		}
 
 		if _, err := units.RAMInBytes(*f.NineP.Msize); err != nil {
