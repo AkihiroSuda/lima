@@ -21,6 +21,7 @@ const (
 	NetworksConfig = "networks.yaml"
 	Default        = "default.yaml"
 	Override       = "override.yaml"
+	Base           = "base.yaml"
 )
 
 // Filenames that may appear under an instance directory

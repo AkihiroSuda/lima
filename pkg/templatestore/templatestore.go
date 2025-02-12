@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/lima-vm/lima/pkg/usrlocalsharelima"
@@ -20,11 +21,17 @@ func Read(name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	yamlPath, err := securejoin.SecureJoin(filepath.Join(dir, "templates"), name+".yaml")
+	ext := filepath.Ext(name)
+	// Append .yaml extension if name doesn't have an extension, or if it starts with a digit.
+	// So "docker.sh" would remain unchanged but "ubuntu-24.04" becomes "ubuntu-24.04.yaml".
+	if len(ext) < 2 || unicode.IsDigit(rune(ext[1])) {
+		name += ".yaml"
+	}
+	filePath, err := securejoin.SecureJoin(filepath.Join(dir, "templates"), name)
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(yamlPath)
+	return os.ReadFile(filePath)
 }
 
 const Default = "default"
