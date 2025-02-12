@@ -35,7 +35,6 @@ declare -A CHECKS=(
 	["disk"]=""
 	["user-v2"]=""
 	["mount-path-with-spaces"]=""
-	["provision-ansible"]=""
 	["param-env-variables"]=""
 	["set-user"]=""
 )
@@ -62,7 +61,6 @@ case "$NAME" in
 	CHECKS["snapshot-online"]="1"
 	CHECKS["snapshot-offline"]="1"
 	CHECKS["mount-path-with-spaces"]="1"
-	CHECKS["provision-ansible"]="1"
 	CHECKS["param-env-variables"]="1"
 	CHECKS["set-user"]="1"
 	;;
@@ -160,13 +158,9 @@ if [[ -n ${CHECKS["mount-path-with-spaces"]} ]]; then
 	[ "$(limactl shell "$NAME" cat "/tmp/lima test dir with spaces/test file")" = "test file content" ]
 fi
 
-if [[ -n ${CHECKS["provision-ansible"]} ]]; then
-	INFO 'Testing that /tmp/ansible was created successfully on provision'
-	limactl shell "$NAME" test -e /tmp/ansible
-fi
-
 if [[ -n ${CHECKS["param-env-variables"]} ]]; then
 	INFO 'Testing that PARAM env variables are exported to all types of provisioning scripts and probes'
+	limactl shell "$NAME" test -e /tmp/param-ansible
 	limactl shell "$NAME" test -e /tmp/param-boot
 	limactl shell "$NAME" test -e /tmp/param-dependency
 	limactl shell "$NAME" test -e /tmp/param-probe
