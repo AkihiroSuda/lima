@@ -100,7 +100,7 @@ func New(instName string, stdout io.Writer, signalCh chan os.Signal, opts ...Opt
 	}
 
 	// inst.Config is loaded with FillDefault() already, so no need to care about nil pointers.
-	sshLocalPort, err := determineSSHLocalPort(*inst.Config.SSH.LocalPort, instName)
+	sshLocalPort, err := determineSSHLocalPort(*inst.Config.SSH.Address, *inst.Config.SSH.LocalPort, instName)
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +138,10 @@ func New(instName string, stdout io.Writer, signalCh chan os.Signal, opts ...Opt
 	if err := cidata.GenerateCloudConfig(inst.Dir, instName, inst.Config); err != nil {
 		return nil, err
 	}
-	if err := cidata.GenerateISO9660(inst.Dir, instName, inst.Config, udpDNSLocalPort, tcpDNSLocalPort, o.nerdctlArchive, vSockPort, virtioPort); err != nil {
-		return nil, err
+	if *inst.Config.VMType != limayaml.EXT {
+		if err := cidata.GenerateISO9660(inst.Dir, instName, inst.Config, udpDNSLocalPort, tcpDNSLocalPort, o.nerdctlArchive, vSockPort, virtioPort); err != nil {
+			return nil, err
+		}
 	}
 
 	sshOpts, err := sshutil.SSHOpts(
@@ -147,6 +149,7 @@ func New(instName string, stdout io.Writer, signalCh chan os.Signal, opts ...Opt
 		inst.Dir,
 		*inst.Config.User.Name,
 		*inst.Config.SSH.LoadDotSSHPubKeys,
+		*inst.Config.SSH.Address,
 		*inst.Config.SSH.ForwardAgent,
 		*inst.Config.SSH.ForwardX11,
 		*inst.Config.SSH.ForwardX11Trusted)
@@ -209,7 +212,7 @@ func New(instName string, stdout io.Writer, signalCh chan os.Signal, opts ...Opt
 		instName:          instName,
 		instSSHAddress:    inst.SSHAddress,
 		sshConfig:         sshConfig,
-		portForwarder:     newPortForwarder(sshConfig, sshLocalPort, rules, ignoreTCP, inst.VMType),
+		portForwarder:     newPortForwarder(sshConfig, inst.SSHAddress, sshLocalPort, rules, ignoreTCP, inst.VMType),
 		grpcPortForwarder: portfwd.NewPortForwarder(rules, ignoreTCP, ignoreUDP),
 		driver:            limaDriver,
 		signalCh:          signalCh,
@@ -243,12 +246,15 @@ func writeSSHConfigFile(sshPath, instName, instDir, instSSHAddress string, sshLo
 	return os.WriteFile(fileName, b.Bytes(), 0o600)
 }
 
-func determineSSHLocalPort(confLocalPort int, instName string) (int, error) {
+func determineSSHLocalPort(confSSHAddress string, confLocalPort int, instName string) (int, error) {
 	if confLocalPort > 0 {
 		return confLocalPort, nil
 	}
 	if confLocalPort < 0 {
 		return 0, fmt.Errorf("invalid ssh local port %d", confLocalPort)
+	}
+	if confLocalPort == 0 && confSSHAddress != "127.0.0.1" {
+		return 22, nil
 	}
 	if instName == "default" {
 		// use hard-coded value for "default" instance, for backward compatibility
@@ -379,8 +385,21 @@ func (a *HostAgent) Run(ctx context.Context) error {
 	return a.startRoutinesAndWait(ctx, errCh)
 }
 
+func getIP(address string) string {
+	ip := net.ParseIP(address)
+	if ip != nil {
+		return address
+	}
+	ips, err := net.LookupIP(address)
+	if err == nil && len(ips) > 0 {
+		return ips[0].String()
+	}
+	return address
+}
+
 func (a *HostAgent) startRoutinesAndWait(ctx context.Context, errCh <-chan error) error {
 	stBase := events.Status{
+		SSHIPAddress: getIP(a.instSSHAddress),
 		SSHLocalPort: a.sshLocalPort,
 	}
 	stBooting := stBase
@@ -484,6 +503,11 @@ sudo chown -R "${USER}" /run/host-services`
 			return errors.Join(unlockErrs...)
 		})
 	}
+	if *a.instConfig.VMType == limayaml.EXT {
+		if err := a.runProvisionScripts(); err != nil {
+			return err
+		}
+	}
 	if !*a.instConfig.Plain {
 		go a.watchGuestAgentEvents(ctx)
 	}
@@ -544,7 +568,7 @@ func (a *HostAgent) watchGuestAgentEvents(ctx context.Context) {
 		for _, rule := range a.instConfig.PortForwards {
 			if rule.GuestSocket != "" {
 				local := hostAddress(rule, &guestagentapi.IPPort{})
-				_ = forwardSSH(ctx, a.sshConfig, a.sshLocalPort, local, rule.GuestSocket, verbForward, rule.Reverse)
+				_ = forwardSSH(ctx, a.sshConfig, a.instSSHAddress, a.sshLocalPort, local, rule.GuestSocket, verbForward, rule.Reverse)
 			}
 		}
 	}
@@ -559,13 +583,13 @@ func (a *HostAgent) watchGuestAgentEvents(ctx context.Context) {
 			if rule.GuestSocket != "" {
 				local := hostAddress(rule, &guestagentapi.IPPort{})
 				// using ctx.Background() because ctx has already been cancelled
-				if err := forwardSSH(context.Background(), a.sshConfig, a.sshLocalPort, local, rule.GuestSocket, verbCancel, rule.Reverse); err != nil {
+				if err := forwardSSH(context.Background(), a.sshConfig, a.instSSHAddress, a.sshLocalPort, local, rule.GuestSocket, verbCancel, rule.Reverse); err != nil {
 					errs = append(errs, err)
 				}
 			}
 		}
 		if a.driver.ForwardGuestAgent() {
-			if err := forwardSSH(context.Background(), a.sshConfig, a.sshLocalPort, localUnix, remoteUnix, verbCancel, false); err != nil {
+			if err := forwardSSH(context.Background(), a.sshConfig, a.instSSHAddress, a.sshLocalPort, localUnix, remoteUnix, verbCancel, false); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -576,7 +600,7 @@ func (a *HostAgent) watchGuestAgentEvents(ctx context.Context) {
 		if a.instConfig.MountInotify != nil && *a.instConfig.MountInotify {
 			if a.client == nil || !isGuestAgentSocketAccessible(ctx, a.client) {
 				if a.driver.ForwardGuestAgent() {
-					_ = forwardSSH(ctx, a.sshConfig, a.sshLocalPort, localUnix, remoteUnix, verbForward, false)
+					_ = forwardSSH(ctx, a.sshConfig, a.instSSHAddress, a.sshLocalPort, localUnix, remoteUnix, verbForward, false)
 				}
 			}
 			err := a.startInotify(ctx)
@@ -589,7 +613,7 @@ func (a *HostAgent) watchGuestAgentEvents(ctx context.Context) {
 	for {
 		if a.client == nil || !isGuestAgentSocketAccessible(ctx, a.client) {
 			if a.driver.ForwardGuestAgent() {
-				_ = forwardSSH(ctx, a.sshConfig, a.sshLocalPort, localUnix, remoteUnix, verbForward, false)
+				_ = forwardSSH(ctx, a.sshConfig, a.instSSHAddress, a.sshLocalPort, localUnix, remoteUnix, verbForward, false)
 			}
 		}
 		client, err := a.getOrCreateClient(ctx)
@@ -687,11 +711,11 @@ const (
 	verbCancel  = "cancel"
 )
 
-func executeSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, command ...string) error {
+func executeSSH(ctx context.Context, sshConfig *ssh.SSHConfig, addr string, port int, command ...string) error {
 	args := sshConfig.Args()
 	args = append(args,
 		"-p", strconv.Itoa(port),
-		"127.0.0.1",
+		addr,
 		"--",
 	)
 	args = append(args, command...)
@@ -702,7 +726,7 @@ func executeSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, command
 	return nil
 }
 
-func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, local, remote, verb string, reverse bool) error {
+func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, addr string, port int, local, remote, verb string, reverse bool) error {
 	args := sshConfig.Args()
 	args = append(args,
 		"-T",
@@ -721,7 +745,7 @@ func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, local, 
 		"-N",
 		"-f",
 		"-p", strconv.Itoa(port),
-		"127.0.0.1",
+		addr,
 		"--",
 	)
 	if strings.HasPrefix(local, "/") {
@@ -729,7 +753,7 @@ func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, local, 
 		case verbForward:
 			if reverse {
 				logrus.Infof("Forwarding %q (host) to %q (guest)", local, remote)
-				if err := executeSSH(ctx, sshConfig, port, "rm", "-f", remote); err != nil {
+				if err := executeSSH(ctx, sshConfig, addr, port, "rm", "-f", remote); err != nil {
 					logrus.WithError(err).Warnf("Failed to clean up %q (guest) before setting up forwarding", remote)
 				}
 			} else {
@@ -744,7 +768,7 @@ func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, local, 
 		case verbCancel:
 			if reverse {
 				logrus.Infof("Stopping forwarding %q (host) to %q (guest)", local, remote)
-				if err := executeSSH(ctx, sshConfig, port, "rm", "-f", remote); err != nil {
+				if err := executeSSH(ctx, sshConfig, addr, port, "rm", "-f", remote); err != nil {
 					logrus.WithError(err).Warnf("Failed to clean up %q (guest) after stopping forwarding", remote)
 				}
 			} else {
@@ -764,7 +788,7 @@ func forwardSSH(ctx context.Context, sshConfig *ssh.SSHConfig, port int, local, 
 		if verb == verbForward && strings.HasPrefix(local, "/") {
 			if reverse {
 				logrus.WithError(err).Warnf("Failed to set up forward from %q (host) to %q (guest)", local, remote)
-				if err := executeSSH(ctx, sshConfig, port, "rm", "-f", remote); err != nil {
+				if err := executeSSH(ctx, sshConfig, addr, port, "rm", "-f", remote); err != nil {
 					logrus.WithError(err).Warnf("Failed to clean up %q (guest) after forwarding failed", remote)
 				}
 			} else {

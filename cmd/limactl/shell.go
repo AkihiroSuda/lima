@@ -147,6 +147,7 @@ func shellAction(cmd *cobra.Command, args []string) error {
 		inst.Dir,
 		*inst.Config.User.Name,
 		*inst.Config.SSH.LoadDotSSHPubKeys,
+		*inst.Config.SSH.Address,
 		*inst.Config.SSH.ForwardAgent,
 		*inst.Config.SSH.ForwardX11,
 		*inst.Config.SSH.ForwardX11Trusted)
