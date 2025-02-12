@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/lima-vm/lima/pkg/limayaml"
 	"github.com/lima-vm/lima/pkg/localpathutil"
@@ -63,6 +64,10 @@ func (a *HostAgent) setupMount(m limayaml.Mount) (*mount, error) {
 		RemotePath:          mountPoint,
 		Readonly:            !(*m.Writable),
 		SSHFSAdditionalArgs: []string{"-o", sshfsOptions},
+	}
+	serverPath, err := exec.LookPath("sftp-server")
+	if err == nil {
+		rsf.OpensshSftpServerBinary = serverPath
 	}
 	if err := rsf.Prepare(); err != nil {
 		return nil, fmt.Errorf("failed to prepare reverse sshfs for %q on %q: %w", location, mountPoint, err)
