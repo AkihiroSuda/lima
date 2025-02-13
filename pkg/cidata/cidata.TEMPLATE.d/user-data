@@ -11,6 +11,9 @@ package_upgrade: true
 package_reboot_if_required: true
 {{- end }}
 
+packages:
+  - rsync
+
 {{- if or .RosettaEnabled (or (eq .MountType "9p") (eq .MountType "virtiofs")) }}
 mounts:
   {{- if .RosettaEnabled }}{{/* Mount the rosetta volume before systemd-binfmt.service(8) starts */}}
