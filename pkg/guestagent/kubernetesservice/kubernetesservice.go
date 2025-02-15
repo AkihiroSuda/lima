@@ -131,11 +131,6 @@ func (s *ServiceWatcher) GetPorts() []Entry {
 		}
 
 		for _, portEntry := range service.Spec.Ports {
-			if portEntry.Protocol != corev1.ProtocolTCP {
-				// currently only TCP port can be forwarded
-				continue
-			}
-
 			var port int32
 			if service.Spec.Type == corev1.ServiceTypeNodePort {
 				port = portEntry.NodePort
