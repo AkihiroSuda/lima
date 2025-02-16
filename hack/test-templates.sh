@@ -176,7 +176,7 @@ fi
 
 if [[ -n ${CHECKS["set-user"]} ]]; then
 	INFO 'Testing that user settings can be provided by lima.yaml'
-	limactl shell "$NAME" grep "^john:x:4711:4711:John Doe:/home/john-john" /etc/passwd
+	limactl shell "$NAME" grep "^john:x:4711:4711:John Doe:/home/john-john:/usr/bin/bash" /etc/passwd
 fi
 
 INFO "Testing proxy settings are imported"

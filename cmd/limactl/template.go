@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,9 @@ func newTemplateCommand() *cobra.Command {
 		// The template command is still hidden because the subcommands and options are still under development
 		// and subject to change at any time.
 		Hidden: true,
+		PreRun: func(*cobra.Command, []string) {
+			logrus.Warn("`limactl template` is experimental")
+		},
 	}
 	templateCommand.AddCommand(
 		newTemplateCopyCommand(),
@@ -43,29 +47,88 @@ var templateCopyExample = `  Template locators are local files, file://, https:/
   # Copy default template to STDOUT
   limactl template copy template://default -
 
-  # Copy template from web location to local file
-  limactl template copy https://example.com/lima.yaml mighty-machine.yaml
+  # Copy template from web location to local file and embed all external references
+  # (this does not embed template:// references)
+  limactl template copy --embed https://example.com/lima.yaml mighty-machine.yaml
 `
 
 func newTemplateCopyCommand() *cobra.Command {
 	templateCopyCommand := &cobra.Command{
-		Use:     "copy TEMPLATE DEST",
+		Use:     "copy [OPTIONS] TEMPLATE DEST",
 		Short:   "Copy template",
 		Long:    "Copy a template via locator to a local file",
 		Example: templateCopyExample,
 		Args:    WrapArgsError(cobra.ExactArgs(2)),
 		RunE:    templateCopyAction,
 	}
+	templateCopyCommand.Flags().Bool("embed", false, "embed external dependencies into template")
+	templateCopyCommand.Flags().Bool("embed-all", false, "embed all dependencies into template")
+	templateCopyCommand.Flags().Bool("fill", false, "fill defaults")
+	templateCopyCommand.Flags().Bool("verbatim", false, "don't make locators absolute")
 	return templateCopyCommand
 }
 
 func templateCopyAction(cmd *cobra.Command, args []string) error {
+	embed, err := cmd.Flags().GetBool("embed")
+	if err != nil {
+		return err
+	}
+	embedAll, err := cmd.Flags().GetBool("embed-all")
+	if err != nil {
+		return err
+	}
+	fill, err := cmd.Flags().GetBool("fill")
+	if err != nil {
+		return err
+	}
+	verbatim, err := cmd.Flags().GetBool("verbatim")
+	if err != nil {
+		return err
+	}
+	if fill {
+		embedAll = true
+	}
+	if embedAll {
+		embed = true
+	}
+	if embed && verbatim {
+		return errors.New("--verbatim cannot be used with any of --embed, --embed-all, or --fill")
+	}
 	tmpl, err := limatmpl.Read(cmd.Context(), "", args[0])
 	if err != nil {
 		return err
 	}
 	if len(tmpl.Bytes) == 0 {
 		return fmt.Errorf("don't know how to interpret %q as a template locator", args[0])
+	}
+	if !verbatim {
+		if embed {
+			// Embed default base.yaml only when fill is true.
+			if err := tmpl.Embed(cmd.Context(), embedAll, fill); err != nil {
+				return err
+			}
+		} else {
+			if err := tmpl.UseAbsLocators(); err != nil {
+				return err
+			}
+		}
+	}
+	if fill {
+		limaDir, err := dirnames.LimaDir()
+		if err != nil {
+			return err
+		}
+		// Load() will merge the template with override.yaml and default.yaml via FillDefaults().
+		// FillDefaults() needs the potential instance directory to validate host templates using {{.Dir}}.
+		filePath := filepath.Join(limaDir, tmpl.Name+".yaml")
+		tmpl.Config, err = limayaml.Load(tmpl.Bytes, filePath)
+		if err != nil {
+			return err
+		}
+		tmpl.Bytes, err = limayaml.Marshal(tmpl.Config, false)
+		if err != nil {
+			return err
+		}
 	}
 	writer := cmd.OutOrStdout()
 	target := args[1]
@@ -113,10 +176,14 @@ func templateValidateAction(cmd *cobra.Command, args []string) error {
 		if tmpl.Name == "" {
 			return fmt.Errorf("can't determine instance name from template locator %q", arg)
 		}
+		// Embed default base.yaml only when fill is true.
+		if err := tmpl.Embed(cmd.Context(), true, fill); err != nil {
+			return err
+		}
 		// Load() will merge the template with override.yaml and default.yaml via FillDefaults().
 		// FillDefaults() needs the potential instance directory to validate host templates using {{.Dir}}.
-		instDir := filepath.Join(limaDir, tmpl.Name)
-		y, err := limayaml.Load(tmpl.Bytes, instDir)
+		filePath := filepath.Join(limaDir, tmpl.Name+".yaml")
+		y, err := limayaml.Load(tmpl.Bytes, filePath)
 		if err != nil {
 			return err
 		}

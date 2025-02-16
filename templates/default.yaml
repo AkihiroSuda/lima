@@ -211,6 +211,12 @@ containerd:
 # Provisioning scripts need to be idempotent because they might be called
 # multiple times, e.g. when the host VM is being restarted.
 # The scripts can use the following template variables: {{.Home}}, {{.Name}}, {{.Hostname}}, {{.UID}}, {{.User}}, and {{.Param.Key}}.
+#
+# EXPERIMENTAL Alternatively the script can be provided using the "file" property. This file is read when the instance
+# is created and then stored under the "script" property. When "file" is specified "script" must be empty.
+# The "file" property can either be a string (URL), or an object with a "url" and "digest" properties.
+# The "digest" property is currently unused.
+# Relative script files will be resolved relative to the location of the template file.
 # 🟢 Builtin default: []
 # provision:
 # # `system` is executed with root privileges
@@ -222,12 +228,9 @@ containerd:
 #     apt-get install -y vim
 # # `user` is executed without root privileges
 # - mode: user
-#   script: |
-#     #!/bin/bash
-#     set -eux -o pipefail
-#     cat <<EOF > ~/.vimrc
-#     set number
-#     EOF
+#   file:
+#     url: user-provisioning.sh
+#     digest: deadbeef
 # # `boot` is executed directly by /bin/sh as part of cloud-init-local.service's early boot process,
 # # which is why there is no hash-bang specified in the example
 # # See cloud-init docs for more info https://docs.cloud-init.io/en/latest/reference/examples.html#run-commands-on-first-boot
@@ -254,6 +257,11 @@ containerd:
 # Probe scripts to check readiness.
 # The scripts run in user mode. They must start with a '#!' line.
 # The scripts can use the following template variables: {{.Home}}, {{.Name}}, {{.Hostname}}, {{.UID}}, {{.User}}, and {{.Param.Key}}.
+# EXPERIMENTAL Alternatively the script can be provided using the "file" property. This file is read when the instance
+# is created and then stored under the "script" property. When "file" is specified "script" must be empty.
+# The "file" property can either be a string (URL), or an object with a "url" and "digest" properties.
+# The "digest" property is currently unused.
+# Relative script files will be resolved relative to the location of the template file.
 # 🟢 Builtin default: []
 # probes:
 # # Only `readiness` probes are supported right now.
@@ -278,6 +286,17 @@ containerd:
 # It should not be set if the minimum version is less than 1.0.0
 # 🟢 Builtin default: not set
 minimumLimaVersion: null
+
+# EXPERIMENTAL
+# Default settings can be imported from base templates. These will be merged in when the instance
+# is created, and the combined template is stored in the instance directory.
+# This setting ca be either a single string (URL), or a list of locators.
+# A locator is again either a string (URL), or an object with "url" and "digest" properties, e.g.
+# base: [{url: ./base.yaml, digest: decafbad}, …]
+# The "digest" property is currently unused.
+# Any relative base template name will be resolved relative to the location of the main template.
+# 🟢 Builtin default: no base template
+base: null
 
 # User to be used inside the VM
 user:
@@ -560,6 +579,12 @@ nestedVirtualization: null
 # It also applies to ALL instances under the same $LIMA_HOME, and is applied
 # on each restart. It can be used to globally override settings, e.g. make
 # the mount of the home directory writable.
+
+# EXPERIMENTAL
+# A third mechanism is $LIMA_HOME/_config/base.yaml. It is similar to
+# `default.yaml` but will be merged during the `base` template embedding
+# when the instance is created, and not on every start. It becomes part
+# of the lima.yaml file.
 
 # On each instance start the config settings are determined: If a value is
 # not set in `lima.yaml`, then the `default.yaml` is used. If that file

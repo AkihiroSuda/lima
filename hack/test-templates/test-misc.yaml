@@ -3,21 +3,7 @@
 # - snapshots
 # - (More to come)
 #
-# This template requires Lima v1.0.0-alpha.0 or later.
-images:
-# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
-- location: "https://cloud-images.ubuntu.com/releases/22.04/release-20220902/ubuntu-22.04-server-cloudimg-amd64.img"
-  arch: "x86_64"
-  digest: "sha256:c777670007cc5f132417b9e0bc01367ccfc2a989951ffa225bb1952917c3aa81"
-- location: "https://cloud-images.ubuntu.com/releases/22.04/release-20220902/ubuntu-22.04-server-cloudimg-arm64.img"
-  arch: "aarch64"
-  digest: "sha256:9620f479bd5a6cbf1e805654d41b27f4fc56ef20f916c8331558241734de81ae"
-# Fallback to the latest release image.
-# Hint: run `limactl prune` to invalidate the cache
-- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
-  arch: "x86_64"
-- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
-  arch: "aarch64"
+base: template://ubuntu-22.04
 
 # 9p is not compatible with `limactl snapshot`
 mountTypesUnsupported: ["9p"]
@@ -25,8 +11,6 @@ mounts:
 - location: "~"
   writable: true
 - location: "/tmp/lima test dir with spaces"
-  writable: true
-- location: "/tmp/lima"
   writable: true
 
 param:
@@ -64,3 +48,5 @@ user:
   comment: John Doe
   home: "/home/{{.User}}-{{.User}}"
   uid: 4711
+  # Ubuntu has identical /bin/bash and /usr/bin/bash
+  shell: /usr/bin/bash

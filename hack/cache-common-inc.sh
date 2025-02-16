@@ -15,17 +15,9 @@ function error_exit() {
 # ```
 function download_template_if_needed() {
 	local template="$1"
-	case "${template}" in
-	https://*)
-		tmp_yaml=$(mktemp -d)/template.yaml
-		curl -sSLf "${template}" >"${tmp_yaml}" || return
-		echo "${tmp_yaml}"
-		;;
-	*)
-		test -f "${template}" || return
-		echo "${template}"
-		;;
-	esac
+	tmp_yaml="$(mktemp -d)/template.yaml"
+	limactl tmpl copy --embed-all "${template}" "${tmp_yaml}" || return
+	echo "${tmp_yaml}"
 }
 
 # e.g.
