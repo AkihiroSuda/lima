@@ -49,7 +49,7 @@ jobs:
         path: _artifacts/
   release:
     # An old release of Ubuntu is chosen for glibc compatibility
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: artifacts-darwin
     timeout-minutes: 20
     # The maximum access is "read" for PRs from public forked repos
