@@ -94,7 +94,7 @@ func Inspect(instName string) (*Instance, error) {
 	inst.Arch = *y.Arch
 	inst.VMType = *y.VMType
 	inst.CPUType = y.CPUType[*y.Arch]
-	inst.SSHAddress = "127.0.0.1"
+	inst.SSHAddress = *y.SSH.Address
 	inst.SSHLocalPort = *y.SSH.LocalPort // maybe 0
 	inst.SSHConfigFile = filepath.Join(instDir, filenames.SSHConfig)
 	inst.HostAgentPID, err = ReadPIDFile(filepath.Join(instDir, filenames.HostAgentPID))
@@ -188,6 +188,14 @@ func inspectStatusWithPIDFiles(instDir string, inst *Instance, y *limayaml.LimaY
 	if err != nil {
 		inst.Status = StatusBroken
 		inst.Errors = append(inst.Errors, err)
+	}
+	if *y.VMType == limayaml.EXT {
+		if inst.HostAgentPID > 0 {
+			inst.Status = StatusRunning
+		} else if inst.HostAgentPID == 0 {
+			inst.Status = StatusStopped
+		}
+		return
 	}
 
 	if inst.Status == StatusUnknown {

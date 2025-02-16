@@ -15,5 +15,6 @@ func Drivers() []string {
 	if wsl2.Enabled {
 		drivers = append(drivers, limayaml.WSL2)
 	}
+	drivers = append(drivers, limayaml.EXT)
 	return drivers
 }

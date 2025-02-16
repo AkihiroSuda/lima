@@ -128,22 +128,24 @@ If any private key under ~/.ssh is protected with a passphrase, you need to have
 	if *a.instConfig.Plain {
 		return req
 	}
-	req = append(req,
-		requirement{
-			description: "user session is ready for ssh",
-			script: `#!/bin/bash
+	if *a.instConfig.VMType != limayaml.EXT {
+		req = append(req,
+			requirement{
+				description: "user session is ready for ssh",
+				script: `#!/bin/bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until sudo diff -q /run/lima-ssh-ready /mnt/lima-cidata/meta-data 2>/dev/null; do sleep 3; done"; then
 	echo >&2 "not ready to start persistent ssh session"
 	exit 1
 fi
 `,
-			debugHint: `The boot sequence will terminate any existing user session after updating
+				debugHint: `The boot sequence will terminate any existing user session after updating
 /etc/environment to make sure the session includes the new values.
 Terminating the session will break the persistent SSH tunnel, so
 it must not be created until the session reset is done.
 `,
-		})
+			})
+	}
 
 	if *a.instConfig.MountType == limayaml.REVSSHFS && len(a.instConfig.Mounts) > 0 {
 		req = append(req, requirement{
@@ -225,20 +227,22 @@ Also see "/var/log/cloud-init-output.log" in the guest.
 
 func (a *HostAgent) finalRequirements() []requirement {
 	req := make([]requirement, 0)
-	req = append(req,
-		requirement{
-			description: "boot scripts must have finished",
-			script: `#!/bin/bash
+	if *a.instConfig.VMType != limayaml.EXT {
+		req = append(req,
+			requirement{
+				description: "boot scripts must have finished",
+				script: `#!/bin/bash
 set -eux -o pipefail
 if ! timeout 30s bash -c "until sudo diff -q /run/lima-boot-done /mnt/lima-cidata/meta-data 2>/dev/null; do sleep 3; done"; then
 	echo >&2 "boot scripts have not finished"
 	exit 1
 fi
 `,
-			debugHint: `All boot scripts, provisioning scripts, and readiness probes must
+				debugHint: `All boot scripts, provisioning scripts, and readiness probes must
 finish before the instance is considered "ready".
 Check "/var/log/cloud-init-output.log" in the guest to see where the process is blocked!
 `,
-		})
+			})
+	}
 	return req
 }
